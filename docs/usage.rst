@@ -185,8 +185,8 @@ Finally note that the ``--no-venv`` flag is a shortcut for ``--force-venv-backen
 .. _opt-reuse-existing-virtualenvs:
 .. _opt-reuse-venv:
 
-Re-using virtualenvs
---------------------
+Reusing virtualenvs
+-------------------
 
 By default, Nox deletes and recreates virtualenvs every time it is run. This is
 usually fine for most projects and continuous integration environments as
@@ -285,6 +285,21 @@ using the ``python`` specified for the current ``PATH``:
    .. code-tab:: console Environment variables
 
          NOXFORCEPYTHON=python NOXSESSION=lint nox
+
+Downloading Python interpreters
+-------------------------------
+
+Nox can download Python interpreters, either via uv or directly from
+python-build-standalone, by using ``--download-python``:
+
+.. code-block:: console
+
+    nox --download-python auto    # Download if interpreter not found (default)
+    nox --download-python never   # Never download interpreters
+    nox --download-python always  # Always download interpreters
+
+You can also set this option with the ``NOX_DOWNLOAD_PYTHON`` environment
+variable.
 
 .. _opt-stop-on-first-error:
 
@@ -434,14 +449,18 @@ However, this will never output colorful logs:
     nox --nocolor
 
 
-.. _opt-report:
+.. _opt-verbose:
 
 
 Controlling commands verbosity
 ------------------------------
 
 By default, Nox will only show output of commands that fail, or, when the commands get passed ``silent=False``.
-By passing ``--verbose`` to Nox, all output of all commands run is shown, regardless of the silent argument.
+By either passing ``--verbose`` to Nox or setting ``nox.options.verbose = True``, all output of all commands
+run is shown, regardless of the silent argument.
+
+
+.. _opt-report:
 
 
 Outputting a machine-readable report

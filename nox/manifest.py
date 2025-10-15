@@ -17,7 +17,6 @@ from __future__ import annotations
 import ast
 import itertools
 import operator
-from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Mapping, cast
 
 from nox._decorators import Call, Func
@@ -40,7 +39,7 @@ WARN_PYTHONS_IGNORED = "python_ignored"
 
 def _unique_list(*args: str) -> list[str]:
     """Return a list without duplicates, while preserving order."""
-    return list(OrderedDict.fromkeys(args))
+    return list(dict.fromkeys(args))
 
 
 class Manifest:
@@ -265,7 +264,7 @@ class Manifest:
         }
 
         # Resolve the dependency graph.
-        root = cast(SessionRunner, object())  # sentinel
+        root = cast("SessionRunner", object())  # sentinel
         try:
             resolved_graph = list(
                 lazy_stable_topo_sort({**dependency_graph, root: self._queue}, root)
@@ -358,8 +357,11 @@ class Manifest:
         calls = Call.generate_calls(func, parametrize)
         for call in calls:
             long_names = []
-            if not multi:
+            if not multi or (
+                self._config.force_pythons and call.python in self._config.extra_pythons
+            ):
                 long_names.append(f"{name}{call.session_signature}")
+
             if func.python:
                 long_names.append(f"{name}-{func.python}{call.session_signature}")
                 # Ensure that specifying session-python will run all parameterizations.

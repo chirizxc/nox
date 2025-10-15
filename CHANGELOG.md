@@ -1,5 +1,105 @@
 # Changelog
 
+## 2025.10.14
+
+This release updates the default for the GitHub Action to target the current range of recommended Pythons (3.10-3.14). There's now a mechanism to control if nox downloads Python (even when not using uv). Several fixes include better free-threading support, custom filenames in script mode, and support for GitHub Actions Windows ARM runners.
+
+We'd like to thank the following folks who contributed to this release:
+
+* @agriyakhetarpal (first contribution)
+* @henryiii
+* @IvanIsCoding (first contribution)
+* @jbdyn (first contribution)
+* @johnthagen
+* @saucoide
+* @shenxianpeng (first contribution)
+* @Spacetown (first contribution)
+* @zzzeek (first contribution)
+
+Features:
+
+* Add `--download-python` python option by @saucoide in https://github.com/wntrblm/nox/pull/989
+* Add `session.env_dir` to get the Path to the environment by @jbdyn in https://github.com/wntrblm/nox/pull/974
+
+Changes:
+
+* GitHub Action 3.10-3.14 default by @henryiii in https://github.com/wntrblm/nox/pull/1003
+* Percolate the `verbose` global option to the `silent` argument for session installation commands, and document it by @agriyakhetarpal in https://github.com/wntrblm/nox/pull/983
+* Disallow abbreviated options by @henryiii in https://github.com/wntrblm/nox/pull/973
+* Log output of failed process by @jbdyn in https://github.com/wntrblm/nox/pull/974
+* Use a separate logging level (`SESSION_INFO`) for session info instead of warning by @Spacetown in https://github.com/wntrblm/nox/pull/990
+
+Bugfixes:
+
+* Support scripts with custom names by @henryiii in https://github.com/wntrblm/nox/pull/1007
+* Correctly match free-threaded python versions by @zzzeek in https://github.com/wntrblm/nox/pull/999
+* Let uv replace the directory instead of deleting it ourselves by @henryiii in https://github.com/wntrblm/nox/pull/981
+* Tighten type for `venv_backend` by @henryiii in https://github.com/wntrblm/nox/pull/967
+* GitHub Actions Windows ARM support by @henryiii in https://github.com/wntrblm/nox/pull/1002
+* Show a warning (eventually error) if a duplicate session is encountered by @henryiii in https://github.com/wntrblm/nox/pull/1013
+* Fix validation error for `nox.options.keywords` by @henryiii in https://github.com/wntrblm/nox/pull/1011
+
+Documentation:
+
+* Add `--script` to `uv run` inline metadata for nox-uv example by @johnthagen in https://github.com/wntrblm/nox/pull/984
+* Document `nox-uv` third party package by @johnthagen in https://github.com/wntrblm/nox/pull/978
+* Recommend `--locked` over `--frozen` for `uv sync` by @johnthagen in https://github.com/wntrblm/nox/pull/972
+* Tweak the grammar in a comment in tasks.py by @brettcannon in https://github.com/wntrblm/nox/pull/987
+* Add rustworkx as an example user by @IvanIsCoding in https://github.com/wntrblm/nox/pull/975
+* Update badge from black to ruff by @shenxianpeng in https://github.com/wntrblm/nox/pull/971
+
+Internal changes:
+
+* Hide new coverage warning on 3.14 by @henryiii in https://github.com/wntrblm/nox/pull/980
+* Correct minimum versions and test by @henryiii in https://github.com/wntrblm/nox/pull/962
+* CI ensure there are no duplicate log handlers by @saucoide in https://github.com/wntrblm/nox/pull/991
+* Add 3.14 beta 1 support by @henryiii in https://github.com/wntrblm/nox/pull/970
+* Add better reprs for some internal classes by @henryiii in https://github.com/wntrblm/nox/pull/966
+* Drop Windows 2019 by @henryiii in https://github.com/wntrblm/nox/pull/985
+* Modernize and remove rc conda channel by @henryiii in https://github.com/wntrblm/nox/pull/964
+* Restore minimums test by @henryiii in https://github.com/wntrblm/nox/pull/982
+* Use dict instead of OrderedDict by @henryiii in https://github.com/wntrblm/nox/pull/963
+* Add conda marker to tests by @henryiii in https://github.com/wntrblm/nox/pull/969
+* Clear the registry in tests by @henryiii in https://github.com/wntrblm/nox/pull/968
+
+
+## 2025.05.01
+
+This is a bugfix release that primarily adds support for uv 0.7+. A few other
+small fixes were made.
+
+We'd like to thank the following folks who contributed to this release:
+
+* @chirizxc
+* @gschaffner
+* @henryiii
+* @living180
+* @Spectre5 (first contribution)
+
+Bugfixes:
+
+* `uv version` is now `uv self version`, respect `UV` by @henryiii and @Spectre5 in https://github.com/wntrblm/nox/pull/955
+* Add `UV_PYTHON` to disallowed vars by @henryiii in https://github.com/wntrblm/nox/pull/959
+* Never ignore URL dependencies in PEP 723 noxfiles by @gschaffner in https://github.com/wntrblm/nox/pull/935
+* Support forcing Python on parametrized session by @henryiii in https://github.com/wntrblm/nox/pull/958
+* Fix `conda_install` issue with newer conda (only Unix) by @henryiii in https://github.com/wntrblm/nox/pull/957
+* Show skip reason by default by @chirizxc in https://github.com/wntrblm/nox/pull/941
+* Support `Path` for envdir by @henryiii in https://github.com/wntrblm/nox/pull/932
+* Use Python 3.12 for action, allow 3.13, drop 3.8 from auto versions by @henryiii in https://github.com/wntrblm/nox/pull/946
+
+Documentation:
+
+* Fix a typo in the changelog by @gschaffner in https://github.com/wntrblm/nox/pull/936
+* Update uv recipe by @henryiii in https://github.com/wntrblm/nox/pull/933
+* Fix parametrized session tagging example by @living180 in https://github.com/wntrblm/nox/pull/942
+* uv now supports `pip install .` reinstallation by @henryiii in https://github.com/wntrblm/nox/pull/947
+
+Internal changes:
+
+* Use PEP 639 license info by @henryiii in https://github.com/wntrblm/nox/pull/956
+* Make test skips a bit smarter by @henryiii in https://github.com/wntrblm/nox/pull/929
+* Add our own requirements to conda too by @henryiii in https://github.com/wntrblm/nox/pull/945
+
 ## 2025.02.09
 
 This release improves PEP 723 support, including adding dependencies to the noxfile itself ("plugins"). It adds the long-awaited "requires" option, allowing sessions to require other sessions. And it brings further improvements to the `pyproject.toml` support, including helpers for dependency-groups and Python version lists.
@@ -664,7 +764,7 @@ Other changes:
 ## v0.19.0
 
 * Add missing parameter in docs (#89)
-* Don't skip install commands when re-using existing virtualenvs. (#86)
+* Don't skip install commands when reusing existing virtualenvs. (#86)
 * Add --nocolor and --forcecolor options (#85)
 * Simulating `unittest.mock` backport in the Python 2 standard library. (#81)
 * Fixing tox-to-nox docs reference. (#80)

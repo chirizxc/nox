@@ -67,13 +67,26 @@ def tests(session: nox.Session) -> None:
             con.execute("DELETE FROM file WHERE SUBSTR(path, 2, 1) == ':'")
 
 
-@nox.session(venv_backend="conda", default=shutil.which("conda"))
+@nox.session(venv_backend="uv", default=False)
+def minimums(session: nox.Session) -> None:
+    """Run test suite with the lowest supported versions of everything. Requires uv."""
+    session.create_tmp()
+
+    session.install("-e.", "--group=test", "--resolution=lowest-direct")
+    session.run("uv", "pip", "list")
+    session.run("pytest", *session.posargs)
+
+
+@nox.session(venv_backend="conda", default=bool(shutil.which("conda")))
 def conda_tests(session: nox.Session) -> None:
     """Run test suite set up with conda."""
     session.conda_install(
         "--file", "requirements-conda-test.txt", channel="conda-forge"
     )
     session.install("-e.", "--no-deps")
+    # Currently, this doesn't work on Windows either with or without quoting
+    if not sys.platform.startswith("win32"):
+        session.conda_install("requests<99")
     session.run("pytest", *session.posargs)
 
 
@@ -84,6 +97,8 @@ def mamba_tests(session: nox.Session) -> None:
         "--file", "requirements-conda-test.txt", channel="conda-forge"
     )
     session.install("-e.", "--no-deps")
+    if not sys.platform.startswith("win32"):
+        session.conda_install("requests<99")
     session.run("pytest", *session.posargs)
 
 
@@ -93,7 +108,10 @@ def micromamba_tests(session: nox.Session) -> None:
     session.conda_install(
         "--file", "requirements-conda-test.txt", channel="conda-forge"
     )
+    # Currently, this doesn't work on Windows either with or without quoting
     session.install("-e.", "--no-deps")
+    if not sys.platform.startswith("win32"):
+        session.conda_install("requests<99")
     session.run("pytest", *session.posargs)
 
 

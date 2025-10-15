@@ -39,13 +39,11 @@ if TYPE_CHECKING:
     from nox.virtualenv import CondaEnv, ProcessEnv, VirtualEnv
 
 IS_WINDOWS = sys.platform.startswith("win")
-HAS_CONDA = shutil.which("conda") is not None
 HAS_UV = shutil.which("uv") is not None
 RAISE_ERROR = "RAISE_ERROR"
 VIRTUALENV_VERSION = metadata.version("virtualenv")
 
 has_uv = pytest.mark.skipif(not HAS_UV, reason="Missing uv command.")
-has_conda = pytest.mark.skipif(not HAS_CONDA, reason="Missing conda command.")
 
 
 class TextProcessResult(NamedTuple):
@@ -171,7 +169,6 @@ def test_condaenv_constructor_explicit(
     assert venv.reuse_existing is True
 
 
-@has_conda
 def test_condaenv_create(make_conda: Callable[..., tuple[CondaEnv, Path]]) -> None:
     venv, dir_ = make_conda()
     venv.create()
@@ -200,7 +197,6 @@ def test_condaenv_create(make_conda: Callable[..., tuple[CondaEnv, Path]]) -> No
     assert venv._reused
 
 
-@has_conda
 def test_condaenv_create_with_params(
     make_conda: Callable[..., tuple[CondaEnv, Path]],
 ) -> None:
@@ -214,23 +210,21 @@ def test_condaenv_create_with_params(
         assert dir_.joinpath("bin", "pip").exists()
 
 
-@has_conda
 def test_condaenv_create_interpreter(
     make_conda: Callable[..., tuple[CondaEnv, Path]],
 ) -> None:
-    venv, dir_ = make_conda(interpreter="3.8")
+    venv, dir_ = make_conda(interpreter="3.12")
     venv.create()
     if IS_WINDOWS:
         assert dir_.joinpath("python.exe").exists()
-        assert dir_.joinpath("python38.dll").exists()
-        assert dir_.joinpath("python38.pdb").exists()
-        assert not dir_.joinpath("python38.exe").exists()
+        assert dir_.joinpath("python312.dll").exists()
+        assert dir_.joinpath("python312.pdb").exists()
+        assert not dir_.joinpath("python312.exe").exists()
     else:
         assert dir_.joinpath("bin", "python").exists()
-        assert dir_.joinpath("bin", "python3.8").exists()
+        assert dir_.joinpath("bin", "python3.12").exists()
 
 
-@has_conda
 def test_conda_env_create_verbose(
     make_conda: Callable[..., tuple[CondaEnv, Path]],
 ) -> None:
@@ -262,13 +256,11 @@ def test_condaenv_bin_windows(make_conda: Callable[..., tuple[CondaEnv, Path]]) 
     ] == venv.bin_paths
 
 
-@has_conda
 def test_condaenv_(make_conda: Callable[..., tuple[CondaEnv, Path]]) -> None:
     venv, _dir = make_conda()
     assert not venv.is_offline()
 
 
-@has_conda
 def test_condaenv_detection(make_conda: Callable[..., tuple[CondaEnv, Path]]) -> None:
     venv, dir_ = make_conda()
     venv.create()
@@ -300,6 +292,9 @@ def test_uv_creation(
     assert venv.interpreter is None
     assert venv.reuse_existing is False
     assert venv.venv_backend == "uv"
+
+    venv.create()
+    assert venv._check_reused_environment_type()
 
     venv.create()
     assert venv._check_reused_environment_type()
@@ -553,7 +548,7 @@ def test_not_stale_virtualenv_environment(
     assert reused
 
 
-@has_conda
+@pytest.mark.conda
 def test_stale_virtualenv_to_conda_environment(
     make_one: Callable[..., tuple[VirtualEnv | ProcessEnv, Path]],
 ) -> None:
@@ -568,7 +563,7 @@ def test_stale_virtualenv_to_conda_environment(
     assert not reused
 
 
-@has_conda
+@pytest.mark.conda
 def test_reuse_conda_environment(
     make_one: Callable[..., tuple[VirtualEnv | ProcessEnv, Path]],
 ) -> None:
@@ -584,7 +579,7 @@ def test_reuse_conda_environment(
 
 
 # This mocks micromamba so that it doesn't need to be installed.
-@has_conda
+@pytest.mark.conda
 def test_micromamba_environment(
     make_one: Callable[..., tuple[VirtualEnv | ProcessEnv, Path]],
     monkeypatch: pytest.MonkeyPatch,
@@ -609,7 +604,7 @@ def test_micromamba_environment(
     "params",
     [["--channel=default"], ["-cdefault"], ["-c", "default"], ["--channel", "default"]],
 )
-@has_conda
+@pytest.mark.conda
 def test_micromamba_channel_environment(
     make_one: Callable[..., tuple[VirtualEnv, Path]],
     monkeypatch: pytest.MonkeyPatch,
@@ -640,7 +635,7 @@ def test_micromamba_channel_environment(
         ("venv", "virtualenv", True),
         ("virtualenv", "uv", True),
         pytest.param("uv", "virtualenv", False, marks=has_uv),
-        pytest.param("conda", "virtualenv", False, marks=has_conda),
+        pytest.param("conda", "virtualenv", False, marks=pytest.mark.conda),
     ],
 )
 def test_stale_environment(
@@ -722,21 +717,151 @@ UV_IN_PIPX_VENV = "/home/user/.local/pipx/venvs/nox/bin/uv"
 
 
 @pytest.mark.parametrize(
-    ("which_result", "find_uv_bin_result", "found", "path", "vers", "vers_rc"),
+    (
+        "uv_env",
+        "which_result",
+        "find_uv_bin_result",
+        "found",
+        "path",
+        "vers",
+        "vers_rc",
+    ),
     [
-        ("/usr/bin/uv", UV_IN_PIPX_VENV, True, UV_IN_PIPX_VENV, "0.5.0", 0),
-        ("/usr/bin/uv", UV_IN_PIPX_VENV, True, UV_IN_PIPX_VENV, "0.6.0", 0),
-        ("/usr/bin/uv", UV_IN_PIPX_VENV, False, "uv", "0.0.0", 0),
-        ("/usr/bin/uv", UV_IN_PIPX_VENV, False, "uv", "0.6.0", 1),
-        ("/usr/bin/uv", None, True, "uv", "0.6.0", 0),
-        ("/usr/bin/uv", None, False, "uv", "0.0.0", 0),
-        ("/usr/bin/uv", None, False, "uv", "0.6.0", 1),
-        (None, UV_IN_PIPX_VENV, True, UV_IN_PIPX_VENV, "0.5.0", 0),
-        (None, None, False, "uv", "0.5.0", 0),
+        pytest.param(
+            None,
+            "/usr/bin/uv",
+            UV_IN_PIPX_VENV,
+            True,
+            UV_IN_PIPX_VENV,
+            "0.5.0",
+            0,
+            id="pkg_pipx_uv_0.5",
+        ),
+        pytest.param(
+            None,
+            "/usr/bin/uv",
+            UV_IN_PIPX_VENV,
+            True,
+            UV_IN_PIPX_VENV,
+            "0.6.0",
+            0,
+            id="pkg_pipx_uv_0.6",
+        ),
+        pytest.param(
+            "custom",
+            "/usr/bin/uv",
+            UV_IN_PIPX_VENV,
+            True,
+            "custom",
+            "0.6.0",
+            0,
+            id="UV_pkg_pipx_uv_0.6",
+        ),
+        pytest.param(
+            None,
+            "/usr/bin/uv",
+            UV_IN_PIPX_VENV,
+            True,
+            UV_IN_PIPX_VENV,
+            "0.7.0",
+            0,
+            id="pkg_pipx_uv_0.7",
+        ),
+        pytest.param(
+            "custom",
+            "/usr/bin/uv",
+            UV_IN_PIPX_VENV,
+            True,
+            "custom",
+            "0.7.0",
+            0,
+            id="UV_pkg_pipx_uv_0.7",
+        ),
+        pytest.param(
+            None,
+            "/usr/bin/uv",
+            UV_IN_PIPX_VENV,
+            False,
+            "uv",
+            "0.0.0",
+            0,
+            id="pkg_system_uv_0.0",
+        ),
+        pytest.param(
+            None,
+            "/usr/bin/uv",
+            UV_IN_PIPX_VENV,
+            False,
+            "uv",
+            "0.6.0",
+            1,
+            id="pkg_system_uv_0.6_broken",
+        ),
+        pytest.param(
+            None,
+            "/usr/bin/uv",
+            UV_IN_PIPX_VENV,
+            False,
+            "uv",
+            "0.7.0",
+            1,
+            id="pkg_system_uv_0.7_broken",
+        ),
+        pytest.param(
+            None, "/usr/bin/uv", None, True, "uv", "0.7.0", 0, id="system_uv_0.7"
+        ),
+        pytest.param(
+            None, "/usr/bin/uv", None, True, "uv", "0.6.0", 0, id="system_uv_0.6"
+        ),
+        pytest.param(
+            None, "/usr/bin/uv", None, False, "uv", "0.0.0", 0, id="system_uv_0.0"
+        ),
+        pytest.param(
+            None,
+            "/usr/bin/uv",
+            None,
+            False,
+            "uv",
+            "0.6.0",
+            1,
+            id="system_uv_0.6_broken",
+        ),
+        pytest.param(
+            None,
+            "/usr/bin/uv",
+            None,
+            False,
+            "uv",
+            "0.7.0",
+            1,
+            id="system_uv_0.7_broken",
+        ),
+        pytest.param(
+            None,
+            None,
+            UV_IN_PIPX_VENV,
+            True,
+            UV_IN_PIPX_VENV,
+            "0.5.0",
+            0,
+            id="pipx_uv_0.5",
+        ),
+        pytest.param(
+            None,
+            None,
+            UV_IN_PIPX_VENV,
+            True,
+            UV_IN_PIPX_VENV,
+            "0.7.0",
+            0,
+            id="pipx_uv_0.7",
+        ),
+        pytest.param(None, None, None, False, "uv", "0.5.0", 0, id="no_uv_0.5"),
     ],
 )
 def test_find_uv(
     monkeypatch: pytest.MonkeyPatch,
+    uv_env: str | None,
     which_result: str | None,
     find_uv_bin_result: str | None,
     found: bool,
@@ -744,21 +869,32 @@ def test_find_uv(
     vers: str,
     vers_rc: int,
 ) -> None:
+    monkeypatch.delenv("UV", raising=False)
+    if uv_env:
+        monkeypatch.setenv("UV", uv_env)
+
     def find_uv_bin() -> str:
         if find_uv_bin_result:
             return find_uv_bin_result
         raise FileNotFoundError()
 
-    def mock_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def mock_run(*args: Any, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if version.Version(vers) < version.Version("0.7.0") and "self" in args[0]:
+            return subprocess.CompletedProcess(
+                args=args[0],
+                returncode=2,
+            )
         return subprocess.CompletedProcess(
-            args=["uv", "version", "--output-format", "json"],
+            args=args[0],
             stdout=f'{{"version": "{vers}", "commit_info": null}}',
             returncode=vers_rc,
         )
 
     monkeypatch.setattr(subprocess, "run", mock_run)
 
-    monkeypatch.setattr(shutil, "which", lambda _: which_result)
+    monkeypatch.setattr(
+        shutil, "which", lambda x: which_result if x.endswith("uv") else uv_env
+    )
     monkeypatch.setattr(Path, "samefile", lambda a, b: a == b)
     monkeypatch.setitem(
         sys.modules, "uv", types.SimpleNamespace(find_uv_bin=find_uv_bin)
@@ -787,7 +923,7 @@ def test_uv_version(
 ) -> None:
     def mock_run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(
-            args=["uv", "version", "--output-format", "json"],
+            args=["uv", "self", "version", "--output-format", "json"],
             stdout=stdout,
             returncode=return_code,
         )
@@ -874,9 +1010,16 @@ def test_inner_functions_reusing_venv(
     venv, location = make_one(reuse_existing=True)
     venv.create()
 
+    txt = location.joinpath("pyvenv.cfg").read_text(encoding="utf-8")
+    cfg = {
+        (v := line.partition("="))[0].strip(): v[-1].strip()
+        for line in txt.splitlines()
+    }
+    home = cfg["home"]
+
     # Drop a venv-style pyvenv.cfg into the environment.
-    pyvenv_cfg = """\
-    home = /usr/bin
+    pyvenv_cfg = f"""\
+    home = {home}
     include-system-site-packages = false
     version = 3.10
     base-prefix = foo
@@ -946,6 +1089,8 @@ def test__resolved_interpreter_none(
         ("3.6.2", "python3.6"),
         ("3.10", "python3.10"),
         ("2.7.15", "python2.7"),
+        ("3.13t", "python3.13t"),
+        ("3.14.1t", "python3.14t"),
     ],
 )
 @mock.patch("nox.virtualenv._PLATFORM", new="linux")
@@ -1125,7 +1270,7 @@ def test__resolved_interpreter_windows_path_and_version_fails(
 ) -> None:
     # Establish that if we get a standard pythonX.Y path, we look it
     # up via the path on Windows.
-    venv, _ = make_one(interpreter=input_)
+    venv, _ = make_one(interpreter=input_, download_python="never")
 
     # Trick the system into thinking that it cannot find
     # pythonX.Y up until the python-in-path check at the end.
@@ -1145,7 +1290,7 @@ def test__resolved_interpreter_not_found(
 ) -> None:
     # Establish that if an interpreter cannot be found at a standard
     # location on Windows, we raise a useful error.
-    venv, _ = make_one(interpreter="python3.6")
+    venv, _ = make_one(interpreter="python3.6", download_python="never")
 
     # We are on Windows, and nothing can be found.
     which.return_value = None
@@ -1202,3 +1347,311 @@ def test__resolved_interpreter_cache_failure(
     with pytest.raises(nox.virtualenv.InterpreterNotFound):  # type: ignore[unreachable]
         print(venv._resolved_interpreter)
     assert which.call_count == 1
+
+
+@pytest.mark.parametrize("venv_backend", ["uv", "venv", "virtualenv"])
+@mock.patch("nox.virtualenv.pbs_install_python")
+@mock.patch("nox.virtualenv.uv_install_python")
+@mock.patch.object(shutil, "which", return_value="/usr/bin/python3.11")
+def test_download_python_never_preexisting_interpreter(
+    which: mock.Mock,
+    uv_install_mock: mock.Mock,
+    pbs_install_mock: mock.Mock,
+    venv_backend: str,
+    make_one: Callable[..., tuple[VirtualEnv, Path]],
+) -> None:
+    venv, _ = make_one(
+        interpreter="python3.11",
+        venv_backend=venv_backend,
+        download_python="never",
+    )
+
+    resolved_interpreter = venv._resolved_interpreter
+    assert resolved_interpreter == "python3.11"
+    which.assert_called_once_with("python3.11")
+
+    # should never try to install
+    uv_install_mock.assert_not_called()
+    pbs_install_mock.assert_not_called()
+
+
+@pytest.mark.parametrize("venv_backend", ["uv", "venv", "virtualenv"])
+@mock.patch("nox.virtualenv.pbs_install_python")
+@mock.patch("nox.virtualenv.uv_install_python")
+@mock.patch.object(shutil, "which", return_value=None)
+def test_download_python_never_missing_interpreter(
+    which: mock.Mock,
+    uv_install_mock: mock.Mock,
+    pbs_install_mock: mock.Mock,
+    venv_backend: str,
+    make_one: Callable[..., tuple[VirtualEnv, Path]],
+) -> None:
+    venv, _ = make_one(
+        interpreter="python3.11",
+        venv_backend=venv_backend,
+        download_python="never",
+    )
+    with pytest.raises(nox.virtualenv.InterpreterNotFound):
+        _ = venv._resolved_interpreter
+
+    if IS_WINDOWS:
+        which.assert_called_with("py")
+    else:
+        which.assert_called_with("python3.11")
+
+    # should never try to install
+    uv_install_mock.assert_not_called()
+    pbs_install_mock.assert_not_called()
+
+
+@pytest.mark.parametrize("venv_backend", ["uv", "venv", "virtualenv"])
+@mock.patch("nox.virtualenv.pbs_install_python")
+@mock.patch("nox.virtualenv.uv_install_python")
+@mock.patch.object(shutil, "which", return_value="/usr/bin/python3.11")
+def test_download_python_auto_preexisting_interpreter(
+    which: mock.Mock,
+    uv_install_mock: mock.Mock,
+    pbs_install_mock: mock.Mock,
+    venv_backend: str,
+    make_one: Callable[..., tuple[VirtualEnv, Path]],
+) -> None:
+    venv, _ = make_one(
+        interpreter="python3.11",
+        venv_backend=venv_backend,
+        download_python="auto",
+    )
+
+    # no install needed
+    uv_install_mock.assert_not_called()
+    pbs_install_mock.assert_not_called()
+
+    assert venv._resolved_interpreter == "python3.11"
+    which.assert_called_with("python3.11")
+
+
+@pytest.mark.parametrize("venv_backend", ["uv", "venv", "virtualenv"])
+@mock.patch(
+    "nox.virtualenv.pbs_install_python",
+    return_value="/.local/share/nox/cpython@3.11.3/bin/python3.11",
+)
+@mock.patch(
+    "nox.virtualenv.uv_install_python",
+    return_value=True,
+)
+@mock.patch.object(shutil, "which", return_value=None)
+def test_download_python_auto_missing_interpreter(
+    which: mock.Mock,
+    uv_install_mock: mock.Mock,
+    pbs_install_mock: mock.Mock,
+    venv_backend: str,
+    make_one: Callable[..., tuple[VirtualEnv, Path]],
+) -> None:
+    venv, _ = make_one(
+        interpreter="python3.11",
+        venv_backend=venv_backend,
+        download_python="auto",
+    )
+
+    resolved_interpreter = venv._resolved_interpreter
+
+    # make sure we tried to find an interpreter first
+    which.assert_any_call("python3.11")
+
+    # the resolved interpreter should be the one we install
+    if venv_backend == "uv":
+        uv_install_mock.assert_called_once_with("python3.11")
+        pbs_install_mock.assert_not_called()
+        assert resolved_interpreter == "python3.11"
+    else:
+        pbs_install_mock.assert_called_once_with("python3.11")
+        uv_install_mock.assert_not_called()
+        assert resolved_interpreter == "/.local/share/nox/cpython@3.11.3/bin/python3.11"
+
+
+@pytest.mark.parametrize("venv_backend", ["uv", "venv", "virtualenv"])
+@mock.patch(
+    "nox.virtualenv.pbs_install_python",
+    return_value="/.local/share/nox/cpython@3.11.3/bin/python3.11",
+)
+@mock.patch(
+    "nox.virtualenv.uv_install_python",
+    return_value=True,
+)
+@mock.patch.object(shutil, "which", return_value="/usr/bin/python3.11")
+def test_download_python_always_preexisting_interpreter(
+    which: mock.Mock,
+    uv_install_mock: mock.Mock,
+    pbs_install_mock: mock.Mock,
+    venv_backend: str,
+    make_one: Callable[..., tuple[VirtualEnv, Path]],
+) -> None:
+    venv, _ = make_one(
+        interpreter="python3.11",
+        venv_backend=venv_backend,
+        download_python="always",
+    )
+
+    resolved_interpreter = venv._resolved_interpreter
+
+    # We should NOT try to find an existing interpreter
+    which.assert_not_called()
+
+    # the resolved interpreter should be the one we install
+    if venv_backend == "uv":
+        uv_install_mock.assert_called_once_with("python3.11")
+        pbs_install_mock.assert_not_called()
+        assert resolved_interpreter == "python3.11"
+    else:
+        pbs_install_mock.assert_called_once_with("python3.11")
+        uv_install_mock.assert_not_called()
+        assert resolved_interpreter == "/.local/share/nox/cpython@3.11.3/bin/python3.11"
+
+
+@pytest.mark.parametrize("venv_backend", ["uv", "venv", "virtualenv"])
+@pytest.mark.parametrize("download_python", ["always", "auto"])
+@mock.patch("nox.virtualenv.pbs_install_python", return_value=None)
+@mock.patch("nox.virtualenv.uv_install_python", return_value=False)
+def test_download_python_failed_install(
+    uv_install_mock: mock.Mock,
+    pbs_install_mock: mock.Mock,
+    download_python: str,
+    venv_backend: str,
+    make_one: Callable[..., tuple[VirtualEnv, Path]],
+) -> None:
+    venv, _ = make_one(
+        interpreter="python3.11",
+        venv_backend=venv_backend,
+        download_python=download_python,
+    )
+
+    with mock.patch.object(shutil, "which", return_value=None) as _, pytest.raises(
+        nox.virtualenv.InterpreterNotFound
+    ):
+        _ = venv._resolved_interpreter
+
+    if venv_backend == "uv":
+        uv_install_mock.assert_called_once_with("python3.11")
+        pbs_install_mock.assert_not_called()
+    else:
+        pbs_install_mock.assert_called_once_with("python3.11")
+        uv_install_mock.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("implementation", "version", "dir_name", "expected"),
+    [
+        ("cpython", "3.11", "cpython@3.11.5", True),
+        ("pypy", "3.8", "pypy@3.8.16", True),
+        ("cpython", "3.12", "cpython@3.11.5", False),
+        ("pypy", "3.11", "cpython@3.11.5", False),
+    ],
+)
+def test_find_pbs_python(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    implementation: str,
+    version: str,
+    dir_name: str,
+    expected: bool,
+) -> None:
+    """Test find_pbs_python deals with different python implementations/versions"""
+    nox_pbs_pythons = tmp_path / "nox_pbs_pythons"
+    monkeypatch.setattr("nox.virtualenv.NOX_PBS_PYTHONS", nox_pbs_pythons)
+
+    python_dir = nox_pbs_pythons / dir_name
+    if IS_WINDOWS:
+        python_dir.mkdir(parents=True)
+        python = python_dir / "python.exe"
+    else:
+        bin_dir = python_dir / "bin"
+        bin_dir.mkdir(parents=True)
+        python = bin_dir / "python"
+    python.touch()
+
+    result = nox.virtualenv._find_pbs_python(implementation, version)
+    if expected:
+        assert result == str(python)
+    else:
+        assert result is None
+
+
+def test_find_pbs_python_missing_interpreter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    nox_pbs_pythons = tmp_path / "nox_pbs_pythons"
+    monkeypatch.setattr("nox.virtualenv.NOX_PBS_PYTHONS", nox_pbs_pythons)
+
+    python_dir = nox_pbs_pythons / "cpython@3.11.5"
+    if IS_WINDOWS:
+        python_dir.mkdir(parents=True)
+    else:
+        bin_dir = python_dir / "bin"
+        bin_dir.mkdir(parents=True)
+
+    assert nox.virtualenv._find_pbs_python("cpython", "3.11") is None
+
+
+@mock.patch("nox.virtualenv._find_pbs_python", return_value="/existing/python/path")
+def test_pbs_install_python_already_installed(find_pbs_mock: mock.Mock) -> None:
+    """Test pbs_install_python early return when it was already installed"""
+    result = nox.virtualenv.pbs_install_python("python3.11")
+
+    assert result == "/existing/python/path"
+    find_pbs_mock.assert_called_once_with("cpython", "3.11")
+
+
+@mock.patch("nox.virtualenv.pbs_installer")
+def test_pbs_install_python_success(
+    pbs_installer_mock: mock.Mock,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    nox_pbs_pythons = tmp_path / "nox_pbs_pythons"
+    monkeypatch.setattr("nox.virtualenv.NOX_PBS_PYTHONS", nox_pbs_pythons)
+
+    # fake the installation
+    python_dir = nox_pbs_pythons / "cpython@3.11.5"
+    if IS_WINDOWS:
+        python_dir.mkdir(parents=True)
+        python_exe = python_dir / "python.exe"
+    else:
+        bin_dir = python_dir / "bin"
+        bin_dir.mkdir(parents=True)
+        python_exe = bin_dir / "python"
+
+    def mock_install(*args: Any, **kwargs: Any) -> None:
+        python_exe.touch()
+
+    pbs_installer_mock.install.side_effect = mock_install
+
+    result = nox.virtualenv.pbs_install_python("python3.11")
+    # return value is a path to the executable
+    assert result == str(python_exe)
+
+
+@pytest.mark.parametrize("download_python", ["always", "auto"])
+@mock.patch("nox.virtualenv.HAS_UV", new=True)
+@mock.patch("nox.virtualenv.UV_VERSION", new=version.Version("0.4.0"))
+@mock.patch("nox.virtualenv.uv_install_python", return_value=True)
+@mock.patch.object(shutil, "which", return_value=None)
+def test_download_python_uv_unsupported_version(
+    which: mock.Mock,
+    uv_install_mock: mock.Mock,
+    download_python: str,
+    make_one: Callable[..., tuple[VirtualEnv, Path]],
+) -> None:
+    """Test we dont install for unsupported uv versions"""
+    venv, _ = make_one(
+        interpreter="python3.11",
+        venv_backend="uv",
+        download_python=download_python,
+    )
+
+    with pytest.raises(nox.virtualenv.InterpreterNotFound):
+        _ = venv._resolved_interpreter
+
+    uv_install_mock.assert_not_called()
+    if download_python == "always":
+        which.assert_not_called()
+    else:  # auto
+        which.assert_any_call("python3.11")
